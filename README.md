@@ -144,7 +144,21 @@ Config.get("any.key")     // any other key from the properties file
 
 ---
 
-## 7. JSON parsing: two ways
+## 7. CI pipeline (GitHub Actions)
+
+The workflow file is `.github/workflows/api-tests.yml`. It runs `mvn test` on JDK 21 (Ubuntu). Maven dependencies are cached between runs.
+
+| Trigger | Environment |
+|---|---|
+| Push to `main` / `master` | `test` |
+| Pull request | `test` |
+| Manual run: **Actions** tab → **API Tests** → **Run workflow** | choose `test`, `qa` or `staging` |
+
+After each run, download the **surefire-reports-&lt;env&gt;** artifact from the run's summary page to see the detailed test results. The reports are uploaded even when tests fail.
+
+---
+
+## 8. JSON parsing: two ways
 
 `GetRequestTest.getUserWithNestedJson()` reads the same nested response in both ways.
 
@@ -192,7 +206,7 @@ String name = json.read("company.name");
 
 ---
 
-## 8. Writing a new test
+## 9. Writing a new test
 
 Add a method to an existing test class, or create a new class under `src/test/java`:
 
