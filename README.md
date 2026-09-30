@@ -65,12 +65,18 @@ OkHttpProject
 └── src
     └── test
         ├── java
+        │   ├── Base.java            # Parent class of all tests: default objects (client, mapper, apiUtils, response, path)
+        │   ├── APIUtils.java        # All API request methods (get, post, ...) + response helpers
         │   ├── Config.java          # Loads the environment properties file
-        │   └── GetRequestTest.java  # Example GET API tests
+        │   ├── TemplateUtil.java    # Renders JSON request bodies from templates
+        │   ├── GetRequestTest.java  # Example GET API tests
+        │   └── PostRequestTest.java # Example POST API test
         └── resources
             ├── test.env.properties     # default environment
             ├── qa.env.properties
-            └── staging.env.properties
+            ├── staging.env.properties
+            └── templates
+                └── createPost.ftl      # JSON body template for POST /posts
 ```
 
 The tests and their config live under `src/test`. `src/main` is not used.
@@ -87,6 +93,7 @@ All of these are declared in `pom.xml`. Maven downloads them automatically.
 | **JUnit 5 (Jupiter)** | `org.junit.jupiter:junit-jupiter` | 5.11.4 | Test framework: `@Test` and assertions such as `assertEquals` |
 | **Jackson Databind** | `com.fasterxml.jackson.core:jackson-databind` | 2.18.2 | JSON parsing as a tree (`ObjectMapper`, `JsonNode`); can also map JSON to Java objects (POJOs) |
 | **Jayway JsonPath** | `com.jayway.jsonpath:json-path` | 2.9.0 | JSON parsing with dot paths such as `address.geo.lat` (`JsonPath`, `DocumentContext`) |
+| **Apache FreeMarker** | `org.freemarker:freemarker` | 2.3.35 | Template engine: builds JSON request bodies from `.ftl` template files |
 | Maven Surefire Plugin | `org.apache.maven.plugins:maven-surefire-plugin` | 3.5.2 | Runs the JUnit tests during `mvn test` |
 
 The code is compiled for **Java 21** (`maven.compiler.release=21` in `pom.xml`).
@@ -144,21 +151,9 @@ Config.get("any.key")     // any other key from the properties file
 
 ---
 
-## 7. CI pipeline (GitHub Actions)
+## 7. JSON parsing: two ways
 
-The workflow file is `.github/workflows/api-tests.yml`. It runs `mvn test` on JDK 21 (Ubuntu). Maven dependencies are cached between runs.
-
-| Trigger | Environment |
-|---|---|
-| Push to `main` / `master` | `test` |
-| Pull request | `test` |
-| Manual run: **Actions** tab → **API Tests** → **Run workflow** | choose `test`, `qa` or `staging` |
-
-After each run, download the **surefire-reports-&lt;env&gt;** artifact from the run's summary page to see the detailed test results. The reports are uploaded even when tests fail.
-
----
-
-## 8. JSON parsing: two ways
+In tests, use `mapper.readTree(apiUtils.getBody(response))` (Jackson) or `apiUtils.getJsonPath(response)` (JsonPath). The examples below show what each one does underneath.
 
 `GetRequestTest.getUserWithNestedJson()` reads the same nested response in both ways.
 
@@ -206,31 +201,114 @@ String name = json.read("company.name");
 
 ---
 
+## 8. Request body templates (FreeMarker)
+
+JSON request bodies are **not built in Java code**. Each body lives in a template file under `src/test/resources/templates/`, with placeholders for the values that change.
+
+`templates/createPost.ftl`:
+```ftl
+{
+  "title": "${title?json_string}",
+  "body": "${body?json_string}",
+  "userId": ${userId?c}
+}
+```
+
+In the test, pass the template name and the values as a `Map`. `apiUtils.post(...)` renders the template and sends it:
+```java
+Map<String, Object> data = new HashMap<>();
+data.put("title", "OkHttp POST example");
+data.put("body", "Created from PostRequestTest");
+data.put("userId", 1);
+
+response = apiUtils.post("/posts", "createPost.ftl", data);
+```
+
+**Template rules:**
+| Value type | Write it as | Why |
+|---|---|---|
+| String | `"${name?json_string}"` | escapes quotes, backslashes and new lines so the JSON stays valid |
+| Number | `${name?c}` | prints `1000`, not `1,000` |
+| Boolean | `${name?c}` | prints `true` / `false` |
+
+- If a placeholder has no value in the `Map`, `render()` fails straight away. You never send a half-filled body.
+- **Adding a new body:** create `templates/<name>.ftl`, then build a `Map` of values and call `apiUtils.post("/path", "<name>.ftl", data)` in your test.
+
+---
+
 ## 9. Writing a new test
 
-Add a method to an existing test class, or create a new class under `src/test/java`:
+The framework has two building blocks:
 
+| Class | Role |
+|---|---|
+| `Base` | Parent class that **every test class extends**. Holds the default objects, so tests never create them. |
+| `APIUtils` | All API request methods and response helpers. It builds the URL from `Config.baseUrl()`, sends the request, prints the request and response, and **always closes the real response** so the connection is released. |
+
+API methods return OkHttp's own `okhttp3.Response`. Its body is already held in memory, so you can read it as many times as you need with `apiUtils.getBody(response)`.
+
+**Objects available in every test (from `Base`):**
+| Field | Type | Use |
+|---|---|---|
+| `client` | `OkHttpClient` | shared HTTP client (used by `apiUtils`) |
+| `mapper` | `ObjectMapper` | Jackson: `mapper.readTree(apiUtils.getBody(response))` |
+| `apiUtils` | `APIUtils` | send requests and read responses |
+| `response` | `okhttp3.Response` | the current test's response |
+| `path` | `DocumentContext` | JsonPath view of the response: `path = apiUtils.getJsonPath(response)` |
+
+JUnit creates a new test class instance for every `@Test`, so `response` and `path` start empty in each test.
+
+**`APIUtils` methods:**
+| Method | Does |
+|---|---|
+| `apiUtils.get("/path")` | GET request |
+| `apiUtils.post("/path", jsonString)` | POST with a raw JSON string |
+| `apiUtils.post("/path", "template.ftl", data)` | POST with a body built from a template |
+| `apiUtils.getBody(response)` | response body as a String (can be called any number of times) |
+| `apiUtils.getJsonPath(response)` | JsonPath `DocumentContext` of the body: `.read("address.geo.lat")` |
+
+**Useful `Response` methods (OkHttp):**
+| Method | Returns |
+|---|---|
+| `response.code()` | HTTP status code, e.g. `200` |
+| `response.header("Content-Type")` | any response header |
+| `response.isSuccessful()` | `true` for 2xx status codes |
+
+Read the body with `apiUtils.getBody(response)`, not `response.body().string()`. `string()` can only be called once; `getBody()` can be called any number of times.
+
+**Example: a new test class**
 ```java
-@Test
-void getCommentsForPost() throws IOException {
-    Request request = new Request.Builder()
-            .url(Config.baseUrl() + "/posts/1/comments")
-            .get()
-            .build();
+public class CommentsTest extends Base {
 
-    try (Response response = client.newCall(request).execute()) {   // try-with-resources closes the response
-        String body = response.body().string();                     // body can only be read once
+    @Test
+    void getCommentsForPost() throws IOException {
+        response = apiUtils.get("/posts/1/comments");
 
         assertEquals(200, response.code());
 
-        DocumentContext json = JsonPath.parse(body);
-        assertEquals(1, (int) json.read("[0].postId"));
+        path = apiUtils.getJsonPath(response);
+        assertEquals(1, (int) path.read("[0].postId"));
     }
 }
 ```
 
 **Conventions:**
-- Always build URLs from `Config.baseUrl()`. Never hard-code a host.
-- Wrap `execute()` in `try (...)` so the connection is released.
-- Read `response.body().string()` **once** and store it in a variable.
+- Every test class must `extend Base`. Don't create your own `OkHttpClient`, `ObjectMapper` or `APIUtils`.
+- Send requests only through `apiUtils`. Pass the path (e.g. `"/users/1"`); the host always comes from the environment file.
+- Put JSON request bodies in `templates/*.ftl`, not in Java strings.
+- For a new HTTP method (PUT, PATCH, DELETE), add it to `APIUtils` so every test can use it.
 - Give test methods clear names that describe the behaviour, e.g. `getUserWithNestedJson`.
+
+---
+
+## 10. CI pipeline (GitHub Actions)
+
+The workflow file is `.github/workflows/api-tests.yml`. It runs `mvn test` on JDK 21 (Ubuntu). Maven dependencies are cached between runs.
+
+| Trigger | Environment |
+|---|---|
+| Push to `main` / `master` | `test` |
+| Pull request | `test` |
+| Manual run: **Actions** tab → **API Tests** → **Run workflow** | choose `test`, `qa` or `staging` |
+
+After each run, download the **surefire-reports-&lt;env&gt;** artifact from the run's summary page to see the detailed test results. The reports are uploaded even when tests fail.
