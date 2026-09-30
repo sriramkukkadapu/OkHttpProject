@@ -23,9 +23,9 @@ public class PostRequestTest extends Base {
 
 		// Response echoes the data we sent, plus a new id
 		path = apiUtils.getJsonPath(response);
-		assertEquals("OkHttp POST example", path.read("title"));
-		assertEquals("Created from PostRequestTest", path.read("body"));
-		assertEquals(1, (int) path.read("userId"));
+		assertEquals(data.get("title"), path.read("title"));
+		assertEquals(data.get("body"), path.read("body"));
+		assertEquals(data.get("userId"), path.read("userId"));
 		assertNotNull(path.read("id"));
 
 		// Clean up: delete the post we created
@@ -56,12 +56,14 @@ public class PostRequestTest extends Base {
 
 		// Read the nested values back with dot paths
 		path = apiUtils.getJsonPath(response);
-		assertEquals("Test User", path.read("name"));
-		assertEquals(email, path.read("email"));
-		assertEquals("London", path.read("address.city"));
-		assertEquals("51.5072", path.read("address.geo.lat"));
-		assertEquals("-0.1276", path.read("address.geo.lng"));
-		assertEquals("Anthropic", path.read("company.name"));
+		assertEquals(userData.get("name"), path.read("name"));
+		assertEquals(userData.get("email"), path.read("email"));
+		assertEquals(userData.get("street"), path.read("address.street"));
+		assertEquals(userData.get("city"), path.read("address.city"));
+		assertEquals(userData.get("zipcode"), path.read("address.zipcode"));
+		assertEquals(userData.get("lat"), path.read("address.geo.lat"));
+		assertEquals(userData.get("lng"), path.read("address.geo.lng"));
+		assertEquals(userData.get("companyName"), path.read("company.name"));
 		assertNotNull(path.read("id"));
 
 		// Clean up: delete the user we created
