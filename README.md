@@ -65,7 +65,7 @@ OkHttpProject
 └── src
     └── test
         ├── java
-        │   ├── Base.java            # Parent class of all tests: default objects (client, mapper, apiUtils, response, path)
+        │   ├── Base.java            # Parent class of all tests: default objects (client, mapper, apiUtils, faker, response, path)
         │   ├── APIUtils.java        # All API request methods (get, post, ...) + response helpers
         │   ├── Config.java          # Loads the environment properties file
         │   ├── TemplateUtil.java    # Renders JSON request bodies from templates
@@ -76,7 +76,8 @@ OkHttpProject
             ├── qa.env.properties
             ├── staging.env.properties
             └── templates
-                └── createPost.ftl      # JSON body template for POST /posts
+                ├── createPost.ftl      # JSON body template for POST /posts
+                └── createUser.ftl      # nested JSON body template for POST /users
 ```
 
 The tests and their config live under `src/test`. `src/main` is not used.
@@ -94,6 +95,7 @@ All of these are declared in `pom.xml`. Maven downloads them automatically.
 | **Jackson Databind** | `com.fasterxml.jackson.core:jackson-databind` | 2.18.2 | JSON parsing as a tree (`ObjectMapper`, `JsonNode`); can also map JSON to Java objects (POJOs) |
 | **Jayway JsonPath** | `com.jayway.jsonpath:json-path` | 2.9.0 | JSON parsing with dot paths such as `address.geo.lat` (`JsonPath`, `DocumentContext`) |
 | **Apache FreeMarker** | `org.freemarker:freemarker` | 2.3.35 | Template engine: builds JSON request bodies from `.ftl` template files |
+| **Datafaker** | `net.datafaker:datafaker` | 2.7.0 | Generates realistic random test data (names, emails, addresses, ...) |
 | Maven Surefire Plugin | `org.apache.maven.plugins:maven-surefire-plugin` | 3.5.2 | Runs the JUnit tests during `mvn test` |
 
 The code is compiled for **Java 21** (`maven.compiler.release=21` in `pom.xml`).
@@ -231,6 +233,21 @@ response = apiUtils.post("/posts", "createPost.ftl", data);
 | Number | `${name?c}` | prints `1000`, not `1,000` |
 | Boolean | `${name?c}` | prints `true` / `false` |
 
+**Nested JSON bodies:** still use **one flat `Map`**. The nesting lives only in the template, which puts each value in the right place (see `createUser.ftl` and `PostRequestTest.createUserWithNestedJson`):
+```java
+data.put("city", "London");
+data.put("lat", "51.5072");
+data.put("companyName", "Equal Experts");
+```
+```ftl
+"address": {
+  "city": "${city?json_string}",
+  "geo": { "lat": "${lat?json_string}" }
+},
+"company": { "name": "${companyName?json_string}" }
+```
+When two nested objects have a field with the same name (e.g. user `name` and company `name`), give the keys different names in the map, e.g. `name` and `companyName`.
+
 - If a placeholder has no value in the `Map`, `render()` fails straight away. You never send a half-filled body.
 - **Adding a new body:** create `templates/<name>.ftl`, then build a `Map` of values and call `apiUtils.post("/path", "<name>.ftl", data)` in your test.
 
@@ -252,6 +269,7 @@ API methods return OkHttp's own `okhttp3.Response`. Its body is already held in 
 |---|---|---|
 | `client` | `OkHttpClient` | shared HTTP client (used by `apiUtils`) |
 | `mapper` | `ObjectMapper` | Jackson: `mapper.readTree(apiUtils.getBody(response))` |
+| `faker` | `Faker` | random test data: `faker.name().firstName()`, `faker.internet().emailAddress()` |
 | `apiUtils` | `APIUtils` | send requests and read responses |
 | `response` | `okhttp3.Response` | the current test's response |
 | `path` | `DocumentContext` | JsonPath view of the response: `path = apiUtils.getJsonPath(response)` |
@@ -264,8 +282,10 @@ JUnit creates a new test class instance for every `@Test`, so `response` and `pa
 | `apiUtils.get("/path")` | GET request |
 | `apiUtils.post("/path", jsonString)` | POST with a raw JSON string |
 | `apiUtils.post("/path", "template.ftl", data)` | POST with a body built from a template |
+| `apiUtils.delete("/path")` | DELETE request |
 | `apiUtils.getBody(response)` | response body as a String (can be called any number of times) |
 | `apiUtils.getJsonPath(response)` | JsonPath `DocumentContext` of the body: `.read("address.geo.lat")` |
+| `apiUtils.getNewEmail()` | unique email on every call: Faker first.last name + timestamp, e.g. `robin.hamill.20260930183330473@gmail.com` |
 
 **Useful `Response` methods (OkHttp):**
 | Method | Returns |
@@ -296,7 +316,8 @@ public class CommentsTest extends Base {
 - Every test class must `extend Base`. Don't create your own `OkHttpClient`, `ObjectMapper` or `APIUtils`.
 - Send requests only through `apiUtils`. Pass the path (e.g. `"/users/1"`); the host always comes from the environment file.
 - Put JSON request bodies in `templates/*.ftl`, not in Java strings.
-- For a new HTTP method (PUT, PATCH, DELETE), add it to `APIUtils` so every test can use it.
+- Use `faker` for values that must be unique or realistic, e.g. `apiUtils.getNewEmail()` for a new email on every run (see `PostRequestTest.createUserWithNestedJson`).
+- For a new HTTP method (PUT, PATCH), add it to `APIUtils` so every test can use it.
 - Give test methods clear names that describe the behaviour, e.g. `getUserWithNestedJson`.
 
 ---
