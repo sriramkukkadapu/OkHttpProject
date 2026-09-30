@@ -61,7 +61,7 @@ public class PostRequestTest extends Base {
 		assertEquals("London", path.read("address.city"));
 		assertEquals("51.5072", path.read("address.geo.lat"));
 		assertEquals("-0.1276", path.read("address.geo.lng"));
-		assertEquals("Equal Experts", path.read("company.name"));
+		assertEquals("Anthropic", path.read("company.name"));
 		assertNotNull(path.read("id"));
 
 		// Clean up: delete the user we created
