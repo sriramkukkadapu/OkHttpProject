@@ -2,7 +2,7 @@
 
 An API test framework written in Java. It sends HTTP requests with **OkHttp**, checks responses with **JUnit 5**, and reads JSON with **Jackson** and **JsonPath**. The environment (test / qa / staging) is chosen from properties files.
 
-The example tests call [JSONPlaceholder](https://jsonplaceholder.typicode.com), a free public API for testing.
+The example tests call [GoRest](https://gorest.co.in), a free public REST API for testing that **really saves data**. Records you create can be read back, and deleted records are gone. That makes full create → get → delete tests possible.
 
 ---
 
@@ -33,6 +33,19 @@ brew install maven
    export PATH="$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH"
    ```
 4. Open a new terminal and check that `java -version` and `mvn -v` both work.
+
+### Get a GoRest access token
+
+GoRest needs a free access token for creating and deleting data (reading works without one).
+
+1. Go to https://gorest.co.in/consumer/login and sign in with GitHub, Google or Microsoft.
+2. Copy your access token.
+3. Add it to `~/.zshrc` and open a new terminal:
+   ```bash
+   export GO_REST_API_TOKEN=your-token-here
+   ```
+
+The token is **never** stored in the project, so it can't be committed to git by mistake. See section 6 for other ways to pass it.
 
 ---
 
@@ -69,15 +82,17 @@ OkHttpProject
         │   ├── APIUtils.java        # All API request methods (get, post, ...) + response helpers
         │   ├── Config.java          # Loads the environment properties file
         │   ├── TemplateUtil.java    # Renders JSON request bodies from templates
-        │   ├── GetRequestTest.java  # Example GET API tests
-        │   └── PostRequestTest.java # Example POST API test
+        │   ├── GetRequestTest.java  # GET tests: list of users, one user (both JSON parsing methods)
+        │   ├── PostRequestTest.java # POST tests: create a user, create a post for a user
+        │   ├── UsersEnd2EndTest.java # E2E: create → get → delete → get 404 for /users
+        │   └── PostsEnd2EndTest.java # E2E: create → get → delete → get 404 for /posts
         └── resources
             ├── test.env.properties     # default environment
             ├── qa.env.properties
             ├── staging.env.properties
             └── templates
                 ├── createPost.ftl      # JSON body template for POST /posts
-                └── createUser.ftl      # nested JSON body template for POST /users
+                └── createUser.ftl      # JSON body template for POST /users
 ```
 
 The tests and their config live under `src/test`. `src/main` is not used.
@@ -108,10 +123,12 @@ The code is compiled for **Java 21** (`maven.compiler.release=21` in `pom.xml`).
 ```bash
 mvn test                               # all tests, default "test" environment
 mvn test -Dtest=GetRequestTest         # one test class
-mvn test -Dtest=GetRequestTest#getPostById   # one test method
+mvn test -Dtest=GetRequestTest#getUsersList  # one test method
 mvn test -Denv=qa                      # all tests against QA
 ```
 A successful run ends with `Tests run: N, Failures: 0` and `BUILD SUCCESS`.
+
+`GO_REST_API_TOKEN` must be set (see section 1). Without it, the output starts with `WARNING: GO_REST_API_TOKEN is not set` and every test that creates data fails with `expected: <201> but was: <401>`.
 
 ### From the IDE
 - Open a test file and click **▶ Run Test** above a test method or the class.
@@ -125,7 +142,7 @@ Base URLs are **not hard-coded** in the tests. Each environment has its own prop
 
 ```properties
 # test.env.properties
-base.url=https://jsonplaceholder.typicode.com
+base.url=https://gorest.co.in/public/v2
 ```
 
 `Config.java` chooses the file from the `env` system property:
@@ -151,21 +168,30 @@ Config.get("any.key")     // any other key from the properties file
 "java.test.config": { "vmArgs": ["-Denv=qa"] }
 ```
 
+### API token
+
+`Config.token()` reads the token from, in this order:
+1. the `GO_REST_API_TOKEN` environment variable, e.g. `export GO_REST_API_TOKEN=...` in `~/.zshrc`
+2. the `api.token` system property, e.g. `mvn test -Dapi.token=...`
+
+The shared `client` in `Base` adds `Authorization: Bearer <token>` to **every** request automatically, so tests and `APIUtils` never deal with it.
+
+**IDE runs:** an IDE started from the Dock doesn't read `~/.zshrc`. Either start it from a terminal, or add the token to the IDE settings JSON (your user settings, not the project):
+```json
+"java.test.config": { "env": { "GO_REST_API_TOKEN": "your-token-here" } }
+```
+
 ---
 
 ## 7. JSON parsing: two ways
 
 In tests, use `mapper.readTree(apiUtils.getBody(response))` (Jackson) or `apiUtils.getJsonPath(response)` (JsonPath). The examples below show what each one does underneath.
 
-`GetRequestTest.getUserWithNestedJson()` reads the same nested response in both ways.
+`GetRequestTest.getUserById()` reads the same response in both ways.
 
-Sample response from `/users/1`:
+Sample response from `/users/{id}`:
 ```json
-{
-  "id": 1,
-  "address": { "city": "Gwenborough", "geo": { "lat": "-37.3159", "lng": "81.1496" } },
-  "company": { "name": "Romaguera-Crona" }
-}
+{ "id": 8643372, "name": "Jane Doe", "email": "jane.doe.20260930183330473@gmail.com", "gender": "female", "status": "active" }
 ```
 
 ### Method 1: Jackson (`JsonNode`)
@@ -174,17 +200,21 @@ Goes down the tree one level at a time.
 ObjectMapper mapper = new ObjectMapper();
 JsonNode node = mapper.readTree(body);
 
-String lat = node.get("address").get("geo").get("lat").asText();
-int id     = node.get("id").asInt();
+String email = node.get("email").asText();
+int id       = node.get("id").asInt();
+
+// nested JSON: one get() per level, e.g. node.get("address").get("geo").get("lat")
 ```
 
 ### Method 2: JsonPath (`DocumentContext`)
-Goes straight to a nested value with a dot path.
+Reads a value with a path. Nested values use dots.
 ```java
 DocumentContext json = JsonPath.parse(body);   // parse once
 
-String lat  = json.read("address.geo.lat");    // read many times
-String name = json.read("company.name");
+String email = json.read("email");             // read many times
+int count    = json.read("$.length()");        // size of a list response, e.g. GET /users
+
+// nested JSON: one path, e.g. json.read("address.geo.lat")
 ```
 `DocumentContext` holds the parsed JSON document, so it isn't re-parsed for every `read()`. The one-line `JsonPath.read(body, "path")` re-parses on each call.
 
@@ -210,20 +240,20 @@ JSON request bodies are **not built in Java code**. Each body lives in a templat
 `templates/createPost.ftl`:
 ```ftl
 {
+  "user_id": ${userId?c},
   "title": "${title?json_string}",
-  "body": "${body?json_string}",
-  "userId": ${userId?c}
+  "body": "${body?json_string}"
 }
 ```
 
 In the test, pass the template name and the values as a `Map`. `apiUtils.post(...)` renders the template and sends it:
 ```java
-Map<String, Object> data = new HashMap<>();
-data.put("title", "OkHttp POST example");
-data.put("body", "Created from PostRequestTest");
-data.put("userId", 1);
+Map<String, Object> postData = new HashMap<>();
+postData.put("userId", userId);
+postData.put("title", "OkHttp POST example");
+postData.put("body", "Created from PostRequestTest");
 
-response = apiUtils.post("/posts", "createPost.ftl", data);
+response = apiUtils.post("/posts", "createPost.ftl", postData);
 ```
 
 **Template rules:**
@@ -233,17 +263,13 @@ response = apiUtils.post("/posts", "createPost.ftl", data);
 | Number | `${name?c}` | prints `1000`, not `1,000` |
 | Boolean | `${name?c}` | prints `true` / `false` |
 
-**Nested JSON bodies:** still use **one flat `Map`**. The nesting lives only in the template, which puts each value in the right place (see `createUser.ftl` and `PostRequestTest.createUserWithNestedJson`):
+**Nested JSON bodies:** still use **one flat `Map`**. The nesting lives only in the template, which puts each value in the right place:
 ```java
 data.put("city", "London");
-data.put("lat", "51.5072");
 data.put("companyName", "Equal Experts");
 ```
 ```ftl
-"address": {
-  "city": "${city?json_string}",
-  "geo": { "lat": "${lat?json_string}" }
-},
+"address": { "city": "${city?json_string}" },
 "company": { "name": "${companyName?json_string}" }
 ```
 When two nested objects have a field with the same name (e.g. user `name` and company `name`), give the keys different names in the map, e.g. `name` and `companyName`.
@@ -267,7 +293,7 @@ API methods return OkHttp's own `okhttp3.Response`. Its body is already held in 
 **Objects available in every test (from `Base`):**
 | Field | Type | Use |
 |---|---|---|
-| `client` | `OkHttpClient` | shared HTTP client (used by `apiUtils`) |
+| `client` | `OkHttpClient` | shared HTTP client (used by `apiUtils`); adds the `Authorization` header to every request |
 | `mapper` | `ObjectMapper` | Jackson: `mapper.readTree(apiUtils.getBody(response))` |
 | `faker` | `Faker` | random test data: `faker.name().firstName()`, `faker.internet().emailAddress()` |
 | `apiUtils` | `APIUtils` | send requests and read responses |
@@ -284,7 +310,7 @@ JUnit creates a new test class instance for every `@Test`, so `response` and `pa
 | `apiUtils.post("/path", "template.ftl", data)` | POST with a body built from a template |
 | `apiUtils.delete("/path")` | DELETE request |
 | `apiUtils.getBody(response)` | response body as a String (can be called any number of times) |
-| `apiUtils.getJsonPath(response)` | JsonPath `DocumentContext` of the body: `.read("address.geo.lat")` |
+| `apiUtils.getJsonPath(response)` | JsonPath `DocumentContext` of the body: `.read("email")` |
 | `apiUtils.getNewEmail()` | unique email on every call: Faker first.last name + timestamp, e.g. `robin.hamill.20260930183330473@gmail.com` |
 
 **Useful `Response` methods (OkHttp):**
@@ -298,16 +324,16 @@ Read the body with `apiUtils.getBody(response)`, not `response.body().string()`.
 
 **Example: a new test class**
 ```java
-public class CommentsTest extends Base {
+public class ActiveUsersTest extends Base {
 
     @Test
-    void getCommentsForPost() throws IOException {
-        response = apiUtils.get("/posts/1/comments");
+    void getActiveUsers() throws IOException {
+        response = apiUtils.get("/users?status=active");
 
         assertEquals(200, response.code());
 
         path = apiUtils.getJsonPath(response);
-        assertEquals(1, (int) path.read("[0].postId"));
+        assertEquals("active", path.read("[0].status"));
     }
 }
 ```
@@ -316,15 +342,24 @@ public class CommentsTest extends Base {
 - Every test class must `extend Base`. Don't create your own `OkHttpClient`, `ObjectMapper` or `APIUtils`.
 - Send requests only through `apiUtils`. Pass the path (e.g. `"/users/1"`); the host always comes from the environment file.
 - Put JSON request bodies in `templates/*.ftl`, not in Java strings.
-- Use `faker` for values that must be unique or realistic, e.g. `apiUtils.getNewEmail()` for a new email on every run (see `PostRequestTest.createUserWithNestedJson`).
+- Use `faker` for values that must be unique or realistic, e.g. `apiUtils.getNewEmail()` for a new email on every run. GoRest rejects duplicate emails.
+- **Create your own test data; don't rely on fixed IDs.** GoRest is shared by many people and its data changes all the time, so a test that needs a user creates one first (see `GetRequestTest.getUserById`).
+- **Clean up:** delete everything the test created at the end. Delete child records first, e.g. the post before its user.
+- GoRest status codes to expect: `200` GET, `201` POST, `204` DELETE (no body), `404` not found, `401` missing or invalid token, `422` validation error (e.g. email already taken).
 - For a new HTTP method (PUT, PATCH), add it to `APIUtils` so every test can use it.
-- Give test methods clear names that describe the behaviour, e.g. `getUserWithNestedJson`.
+- Give test methods clear names that describe the behaviour, e.g. `createGetDeleteUser`.
 
 ---
 
 ## 10. CI pipeline (GitHub Actions)
 
 The workflow file is `.github/workflows/api-tests.yml`. It runs `mvn test` on JDK 21 (Ubuntu). Maven dependencies are cached between runs.
+
+**One-time setup:** the pipeline reads the GoRest token from a repository secret. In GitHub, go to **Settings → Secrets and variables → Actions → New repository secret**, then add:
+- Name: `GO_REST_API_TOKEN`
+- Value: your GoRest token
+
+Without it, the tests that create data fail with `401`.
 
 | Trigger | Environment |
 |---|---|

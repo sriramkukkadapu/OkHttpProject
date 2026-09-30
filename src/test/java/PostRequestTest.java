@@ -10,65 +10,68 @@ import org.junit.jupiter.api.Test;
 public class PostRequestTest extends Base {
 
 	@Test
-	void createPost() throws IOException {
-		// Values for the placeholders in templates/createPost.ftl
-		Map<String, Object> data = new HashMap<>();
-		data.put("title", "OkHttp POST example");
-		data.put("body", "Created from PostRequestTest");
-		data.put("userId", 1);
-
-		response = apiUtils.post("/posts", "createPost.ftl", data);
-
-		assertEquals(201, response.code());
-
-		// Response echoes the data we sent, plus a new id
-		path = apiUtils.getJsonPath(response);
-		assertEquals(data.get("title"), path.read("title"));
-		assertEquals(data.get("body"), path.read("body"));
-		assertEquals(data.get("userId"), path.read("userId"));
-		assertNotNull(path.read("id"));
-
-		// Clean up: delete the post we created
-		int postId = path.read("id");
-		response = apiUtils.delete("/posts/" + postId);
-		assertEquals(200, response.code());
-	}
-
-	@Test
-	void createUserWithNestedJson() throws IOException {
-		// Unique email on every run
-		String email = apiUtils.getNewEmail();
-
-		// One flat map - templates/createUser.ftl places each value in the nested JSON
+	void createUser() throws IOException {
+		// Values for the placeholders in templates/createUser.ftl
 		Map<String, Object> userData = new HashMap<>();
-		userData.put("name", "Test User");
-		userData.put("email", email);
-		userData.put("street", "221B Baker Street");
-		userData.put("city", "London");
-		userData.put("zipcode", "NW1 6XE");
-		userData.put("lat", "51.5072");
-		userData.put("lng", "-0.1276");
-		userData.put("companyName", "Anthropic");
+		userData.put("name", faker.name().fullName());
+		userData.put("email", apiUtils.getNewEmail());
+		userData.put("gender", "male");
+		userData.put("status", "active");
 
 		response = apiUtils.post("/users", "createUser.ftl", userData);
 
 		assertEquals(201, response.code());
 
-		// Read the nested values back with dot paths
+		// Response returns the data we sent, plus a new id
 		path = apiUtils.getJsonPath(response);
 		assertEquals(userData.get("name"), path.read("name"));
 		assertEquals(userData.get("email"), path.read("email"));
-		assertEquals(userData.get("street"), path.read("address.street"));
-		assertEquals(userData.get("city"), path.read("address.city"));
-		assertEquals(userData.get("zipcode"), path.read("address.zipcode"));
-		assertEquals(userData.get("lat"), path.read("address.geo.lat"));
-		assertEquals(userData.get("lng"), path.read("address.geo.lng"));
-		assertEquals(userData.get("companyName"), path.read("company.name"));
+		assertEquals(userData.get("gender"), path.read("gender"));
+		assertEquals(userData.get("status"), path.read("status"));
 		assertNotNull(path.read("id"));
 
 		// Clean up: delete the user we created
 		int userId = path.read("id");
 		response = apiUtils.delete("/users/" + userId);
-		assertEquals(200, response.code());
+		assertEquals(204, response.code());
+	}
+
+	@Test
+	void createPostForUser() throws IOException {
+		// A post must belong to an existing user, so create one first
+		Map<String, Object> userData = new HashMap<>();
+		userData.put("name", faker.name().fullName());
+		userData.put("email", apiUtils.getNewEmail());
+		userData.put("gender", "female");
+		userData.put("status", "active");
+
+		response = apiUtils.post("/users", "createUser.ftl", userData);
+		assertEquals(201, response.code());
+		path = apiUtils.getJsonPath(response);
+		int userId = path.read("id");
+
+		// Values for the placeholders in templates/createPost.ftl
+		Map<String, Object> postData = new HashMap<>();
+		postData.put("userId", userId);
+		postData.put("title", "OkHttp POST example");
+		postData.put("body", "Created from PostRequestTest");
+
+		response = apiUtils.post("/posts", "createPost.ftl", postData);
+
+		assertEquals(201, response.code());
+
+		path = apiUtils.getJsonPath(response);
+		assertEquals(postData.get("userId"), path.read("user_id"));
+		assertEquals(postData.get("title"), path.read("title"));
+		assertEquals(postData.get("body"), path.read("body"));
+		assertNotNull(path.read("id"));
+
+		// Clean up: delete the post, then the user
+		int postId = path.read("id");
+		response = apiUtils.delete("/posts/" + postId);
+		assertEquals(204, response.code());
+
+		response = apiUtils.delete("/users/" + userId);
+		assertEquals(204, response.code());
 	}
 }

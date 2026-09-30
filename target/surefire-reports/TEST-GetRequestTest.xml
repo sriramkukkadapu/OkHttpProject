@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="GetRequestTest" time="0.443" tests="2" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="GetRequestTest" time="0.532" tests="2" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -13,7 +13,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="US"/>
     <property name="sun.boot.library.path" value="/Users/sriramkukkadapu/Library/Java/JavaVirtualMachines/jdk-21.0.12.1+1/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/surefire/surefirebooter-20260930184553170_3.jar /Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/surefire 2026-09-30T18-45-53_136-jvmRun1 surefire-20260930184553170_1tmp surefire_0-20260930184553170_2tmp"/>
+    <property name="sun.java.command" value="/Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/surefire/surefirebooter-20260930205129948_3.jar /Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/surefire 2026-09-30T20-51-29_910-jvmRun1 surefire-20260930205129948_1tmp surefire_0-20260930205129948_2tmp"/>
     <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="/Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/test-classes:/Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/classes:/Users/sriramkukkadapu/.m2/repository/com/squareup/okhttp3/okhttp/4.12.0/okhttp-4.12.0.jar:/Users/sriramkukkadapu/.m2/repository/com/squareup/okio/okio/3.6.0/okio-3.6.0.jar:/Users/sriramkukkadapu/.m2/repository/com/squareup/okio/okio-jvm/3.6.0/okio-jvm-3.6.0.jar:/Users/sriramkukkadapu/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-common/1.9.10/kotlin-stdlib-common-1.9.10.jar:/Users/sriramkukkadapu/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.8.21/kotlin-stdlib-jdk8-1.8.21.jar:/Users/sriramkukkadapu/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib/1.8.21/kotlin-stdlib-1.8.21.jar:/Users/sriramkukkadapu/.m2/repository/org/jetbrains/annotations/13.0/annotations-13.0.jar:/Users/sriramkukkadapu/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-jdk7/1.8.21/kotlin-stdlib-jdk7-1.8.21.jar:/Users/sriramkukkadapu/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.18.2/jackson-databind-2.18.2.jar:/Users/sriramkukkadapu/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.18.2/jackson-annotations-2.18.2.jar:/Users/sriramkukkadapu/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.18.2/jackson-core-2.18.2.jar:/Users/sriramkukkadapu/.m2/repository/com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar:/Users/sriramkukkadapu/.m2/repository/net/minidev/json-smart/2.5.0/json-smart-2.5.0.jar:/Users/sriramkukkadapu/.m2/repository/net/minidev/accessors-smart/2.5.0/accessors-smart-2.5.0.jar:/Users/sriramkukkadapu/.m2/repository/org/ow2/asm/asm/9.3/asm-9.3.jar:/Users/sriramkukkadapu/.m2/repository/org/slf4j/slf4j-api/2.0.11/slf4j-api-2.0.11.jar:/Users/sriramkukkadapu/.m2/repository/org/freemarker/freemarker/2.3.35/freemarker-2.3.35.jar:/Users/sriramkukkadapu/.m2/repository/net/datafaker/datafaker/2.7.0/datafaker-2.7.0.jar:/Users/sriramkukkadapu/.m2/repository/org/yaml/snakeyaml/2.6/snakeyaml-2.6.jar:/Users/sriramkukkadapu/.m2/repository/com/github/curious-odd-man/rgxgen/3.1/rgxgen-3.1.jar:/Users/sriramkukkadapu/.m2/repository/com/googlecode/libphonenumber/libphonenumber/9.0.33/libphonenumber-9.0.33.jar:/Users/sriramkukkadapu/.m2/repository/org/junit/jupiter/junit-jupiter/5.11.4/junit-jupiter-5.11.4.jar:/Users/sriramkukkadapu/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.11.4/junit-jupiter-api-5.11.4.jar:/Users/sriramkukkadapu/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/Users/sriramkukkadapu/.m2/repository/org/junit/platform/junit-platform-commons/1.11.4/junit-platform-commons-1.11.4.jar:/Users/sriramkukkadapu/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/sriramkukkadapu/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.11.4/junit-jupiter-params-5.11.4.jar:/Users/sriramkukkadapu/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.11.4/junit-jupiter-engine-5.11.4.jar:/Users/sriramkukkadapu/.m2/repository/org/junit/platform/junit-platform-engine/1.11.4/junit-platform-engine-1.11.4.jar:"/>
@@ -30,7 +30,7 @@
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/surefire/surefirebooter-20260930184553170_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/sriramkukkadapu/eclipse-workspace/OkHttpProject/target/surefire/surefirebooter-20260930205129948_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.runtime.version" value="21.0.12.1+1-LTS"/>
@@ -59,46 +59,25 @@
     <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.class.version" value="65.0"/>
   </properties>
-  <testcase name="getPostById" classname="GetRequestTest" time="0.218">
-    <system-out><![CDATA[Loaded environment: test (test.env.properties)
-GET https://jsonplaceholder.typicode.com/posts/1
-Response 200: {
-  "userId": 1,
-  "id": 1,
-  "title": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",
-  "body": "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
-}
+  <testcase name="getUsersList" classname="GetRequestTest" time="0.13">
+    <system-out><![CDATA[GET https://gorest.co.in/public/v2/users
+Response 200: [{"id":8643371,"name":"Dhanvin Gill II","email":"dhanvin_ii_gill@shields-auer.example","gender":"male","status":"active"},{"id":8643370,"name":"Prem Gupta","email":"prem_gupta@funk.example","gender":"male","status":"inactive"},{"id":8643369,"name":"Sen. Gajbaahu Kaur","email":"sen_kaur_gajbaahu@marks.example","gender":"female","status":"active"},{"id":8643367,"name":"Jitender Devar","email":"devar_jitender@macejkovic-lubowitz.test","gender":"male","status":"inactive"},{"id":8643366,"name":"Tara Guneta","email":"guneta_tara@kutch-towne.example","gender":"female","status":"active"},{"id":8643365,"name":"Lakshmidhar Shukla","email":"lakshmidhar_shukla@quitzon.example","gender":"female","status":"active"},{"id":8643363,"name":"Abani Varrier","email":"abani_varrier@macgyver-brekke.test","gender":"male","status":"active"},{"id":8643362,"name":"Tanirika Bhat III","email":"bhat_tanirika_iii@hansen.test","gender":"female","status":"active"},{"id":8643361,"name":"Nirbhay Jha","email":"nirbhay_jha@considine.test","gender":"female","status":"inactive"},{"id":8643360,"name":"Divakar Dubashi","email":"divakar_dubashi@rice-bogisich.test","gender":"male","status":"inactive"}]
 ]]></system-out>
-    <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
-SLF4J(W): Defaulting to no-operation (NOP) logger implementation
-SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
-]]></system-err>
   </testcase>
-  <testcase name="getUserWithNestedJson" classname="GetRequestTest" time="0.062">
-    <system-out><![CDATA[GET https://jsonplaceholder.typicode.com/users/1
-Response 200: {
-  "id": 1,
-  "name": "Leanne Graham",
-  "username": "Bret",
-  "email": "Sincere@april.biz",
-  "address": {
-    "street": "Kulas Light",
-    "suite": "Apt. 556",
-    "city": "Gwenborough",
-    "zipcode": "92998-3874",
-    "geo": {
-      "lat": "-37.3159",
-      "lng": "81.1496"
-    }
-  },
-  "phone": "1-770-736-8031 x56442",
-  "website": "hildegard.org",
-  "company": {
-    "name": "Romaguera-Crona",
-    "catchPhrase": "Multi-layered client-server neural-net",
-    "bs": "harness real-time e-markets"
-  }
+  <testcase name="getUserById" classname="GetRequestTest" time="0.4">
+    <system-out><![CDATA[Request body: {
+  "name": "Tonda Hamill Jr.",
+  "email": "jerald.terry.20260930205132027@hotmail.com",
+  "gender": "female",
+  "status": "active"
 }
+
+POST https://gorest.co.in/public/v2/users
+Response 201: {"id":8644224,"name":"Tonda Hamill Jr.","email":"jerald.terry.20260930205132027@hotmail.com","gender":"female","status":"active"}
+GET https://gorest.co.in/public/v2/users/8644224
+Response 200: {"id":8644224,"name":"Tonda Hamill Jr.","email":"jerald.terry.20260930205132027@hotmail.com","gender":"female","status":"active"}
+DELETE https://gorest.co.in/public/v2/users/8644224
+Response 204: 
 ]]></system-out>
   </testcase>
 </testsuite>

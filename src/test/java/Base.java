@@ -4,6 +4,7 @@ import com.jayway.jsonpath.DocumentContext;
 import net.datafaker.Faker;
 
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.Response;
 
 /**
@@ -13,7 +14,18 @@ import okhttp3.Response;
 public class Base {
 
 	// Shared by all tests - created once
-	protected static final OkHttpClient client = new OkHttpClient();
+	// Adds "Authorization: Bearer <GO_REST_API_TOKEN>" to every request, so API methods don't have to
+	protected static final OkHttpClient client = new OkHttpClient.Builder()
+			.addInterceptor(chain -> {
+				Request request = chain.request();
+				if (Config.token() != null) {
+					request = request.newBuilder()
+							.header("Authorization", "Bearer " + Config.token())
+							.build();
+				}
+				return chain.proceed(request);
+			})
+			.build();
 	protected static final ObjectMapper mapper = new ObjectMapper();
 	protected static final APIUtils apiUtils = new APIUtils(client);
 	protected static final Faker faker = new Faker();
