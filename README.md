@@ -64,6 +64,7 @@ The token is **never** stored in the project, so it can't be committed to git by
 3. Quit the IDE completely (Cmd+Q) and reopen it.
 4. Choose **File → Open Folder…** and select this project folder, the one that contains `pom.xml`. Click **Trust** when asked.
 5. Wait for the status bar to show **Java: Ready**. The project is then imported as a Maven project and the dependencies are downloaded.
+6. Give IDE test runs your GoRest token. See **section 6 → Token for IDE test runs**. Without it, tests started with ▶ Run Test fail with `401`.
 
 **IntelliJ / Eclipse:** import the folder as a **Maven project** and set the project SDK to JDK 21.
 
@@ -84,6 +85,7 @@ OkHttpProject
         │   ├── TemplateUtil.java    # Renders JSON request bodies from templates
         │   ├── GetRequestTest.java  # GET tests: list of users, one user (both JSON parsing methods)
         │   ├── PostRequestTest.java # POST tests: create a user, create a post for a user
+        │   ├── DeleteUserTest.java  # DELETE test: create a user from a template, delete it, check it's gone
         │   ├── UsersEnd2EndTest.java # E2E: create → get → delete → get 404 for /users
         │   └── PostsEnd2EndTest.java # E2E: create → get → delete → get 404 for /posts
         └── resources
@@ -111,6 +113,7 @@ All of these are declared in `pom.xml`. Maven downloads them automatically.
 | **Jayway JsonPath** | `com.jayway.jsonpath:json-path` | 2.9.0 | JSON parsing with dot paths such as `address.geo.lat` (`JsonPath`, `DocumentContext`) |
 | **Apache FreeMarker** | `org.freemarker:freemarker` | 2.3.35 | Template engine: builds JSON request bodies from `.ftl` template files |
 | **Datafaker** | `net.datafaker:datafaker` | 2.7.0 | Generates realistic random test data (names, emails, addresses, ...) |
+| SLF4J NOP | `org.slf4j:slf4j-nop` | 2.0.11 | Silent logger for JsonPath's logging, so the `No SLF4J providers were found` warning doesn't appear |
 | Maven Surefire Plugin | `org.apache.maven.plugins:maven-surefire-plugin` | 3.5.2 | Runs the JUnit tests during `mvn test` |
 
 The code is compiled for **Java 21** (`maven.compiler.release=21` in `pom.xml`).
@@ -133,6 +136,20 @@ A successful run ends with `Tests run: N, Failures: 0` and `BUILD SUCCESS`.
 ### From the IDE
 - Open a test file and click **▶ Run Test** above a test method or the class.
 - Or open the **Testing** panel (flask icon in the left bar) and run tests from there.
+- IDE runs need the token set up for the IDE (section 6). Running `mvn test` in the IDE's **built-in terminal** works straight away, because that terminal reads `~/.zshrc`.
+
+### What the tests cover
+| Test | What it does |
+|---|---|
+| `GetRequestTest.getUsersList` | GET `/users`, checks the status, content type and that the list isn't empty |
+| `GetRequestTest.getUserById` | creates a user, reads it back with **both** Jackson and JsonPath, then deletes it |
+| `PostRequestTest.createUser` | POST `/users` from a template, checks every field in the response, then deletes it |
+| `PostRequestTest.createPostForUser` | creates a user, POST `/posts` for that user, checks the response, then deletes the post and the user |
+| `DeleteUserTest.deleteUser` | creates a user from `createUser.ftl`, DELETEs it (`204`, empty body), then GET returns `404` |
+| `UsersEnd2EndTest.createGetDeleteUser` | **Create** (201) → **Get** (200, every field matches) → **Delete** (204) → **Get** again (404) |
+| `PostsEnd2EndTest.createGetDeletePost` | same flow for a post (creates and deletes its user as well) |
+
+Every test cleans up the data it created, so runs leave nothing behind on GoRest.
 
 ---
 
@@ -163,10 +180,7 @@ Config.get("any.key")     // any other key from the properties file
 
 **Adding a new environment:** create `src/test/resources/<name>.env.properties` with a `base.url`, then run `mvn test -Denv=<name>`. No code change is needed.
 
-**Choosing the environment for IDE runs:** add this to the IDE settings JSON:
-```json
-"java.test.config": { "vmArgs": ["-Denv=qa"] }
-```
+**Choosing the environment for IDE runs:** see **Token for IDE test runs** below. The environment and the token go in the same `java.test.config` block.
 
 ### API token
 
@@ -176,10 +190,44 @@ Config.get("any.key")     // any other key from the properties file
 
 The shared `client` in `Base` adds `Authorization: Bearer <token>` to **every** request automatically, so tests and `APIUtils` never deal with it.
 
-**IDE runs:** an IDE started from the Dock doesn't read `~/.zshrc`. Either start it from a terminal, or add the token to the IDE settings JSON (your user settings, not the project):
-```json
-"java.test.config": { "env": { "GO_REST_API_TOKEN": "your-token-here" } }
-```
+### Token for IDE test runs
+
+When you click **▶ Run Test**, the IDE starts the test itself. An IDE opened from the Dock or Spotlight **doesn't read `~/.zshrc`**, so it doesn't know `GO_REST_API_TOKEN`. Choose one of these options.
+
+**Option A: put the token in your IDE user settings (recommended; works however you open the IDE)**
+1. Press **Cmd+Shift+P** and run **Preferences: Open User Settings (JSON)**.
+   - Use **User** settings, not **Workspace** settings. Workspace settings are saved in the project folder and could be committed to git.
+   - The file is `~/Library/Application Support/Antigravity IDE/User/settings.json`.
+2. Add this block inside the outer `{ }`. The line before it needs a comma at the end.
+   ```json
+   "java.test.config": {
+       "env": { "GO_REST_API_TOKEN": "your-token-here" },
+       "vmArgs": ["-Denv=test"]
+   }
+   ```
+   - `env` passes the token to IDE test runs.
+   - `vmArgs` is optional: it chooses the environment for IDE runs (`-Denv=qa`, `-Denv=staging`, ...). Leave it out to use the default `test`.
+3. Save with **Cmd+S**. It applies to the next test run; no restart is needed.
+
+The token is stored in plain text in that settings file. It's outside the project, so it won't go into git. If you share or sync your IDE settings, it goes with them.
+
+**Option B: start the IDE from a terminal (nothing stored in settings)**
+1. **Quit the IDE completely with Cmd+Q.** If it's still running, the launcher reuses the running app and its old environment.
+2. Start it with its own command-line launcher, which passes on the terminal's environment variables:
+   ```bash
+   "/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide" ~/eclipse-workspace/OkHttpProject
+   ```
+   `open -a "Antigravity IDE"` does **not** work. On macOS, apps started with `open` don't get the terminal's environment variables.
+3. Optionally, add a shortcut to `~/.zshrc`, then use `agy ~/eclipse-workspace/OkHttpProject`:
+   ```bash
+   alias agy='"/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide"'
+   ```
+
+With this option you must always start the IDE this way. A Dock launch won't have the token.
+
+**Check it works:** open `GetRequestTest.java` and click **▶ Run Test** above `getUserById`. It should pass, and the output should show `POST .../users` → `Response 201`. If you see `WARNING: GO_REST_API_TOKEN is not set`, the IDE still doesn't have the token:
+- **Option A:** check it's in **User** settings, the name is spelled exactly, and the file is saved.
+- **Option B:** the IDE was still running. Quit it with Cmd+Q and start it with the launcher again.
 
 ---
 
@@ -355,11 +403,28 @@ public class ActiveUsersTest extends Base {
 
 The workflow file is `.github/workflows/api-tests.yml`. It runs `mvn test` on JDK 21 (Ubuntu). Maven dependencies are cached between runs.
 
-**One-time setup:** the pipeline reads the GoRest token from a repository secret. In GitHub, go to **Settings → Secrets and variables → Actions → New repository secret**, then add:
-- Name: `GO_REST_API_TOKEN`
-- Value: your GoRest token
+### One-time setup: add the token as a repository secret
 
-Without it, the tests that create data fail with `401`.
+The pipeline reads the GoRest token from a GitHub secret. The workflow passes it to the tests as `GO_REST_API_TOKEN: ${{ secrets.GO_REST_API_TOKEN }}`.
+
+1. **Copy your token** to the clipboard without printing it:
+   ```bash
+   source ~/.zshrc && printf %s "$GO_REST_API_TOKEN" | pbcopy
+   ```
+2. Open the repository on GitHub and click the **⚙️ Settings** tab at the top of the repository (not your account settings). You need owner or admin rights to see it.
+3. In the left sidebar, under **Security**, open **Secrets and variables → Actions**.
+4. On the **Secrets** tab, click **New repository secret**:
+   - **Name:** `GO_REST_API_TOKEN`. It must match exactly, in capitals.
+   - **Secret:** press Cmd+V to paste the token. Check there are no extra spaces or line breaks.
+5. Click **Add secret**.
+
+GitHub never shows the value again, and it's masked as `***` in pipeline logs.
+
+**Check it works:** open the **Actions** tab, then the latest **API Tests** run → **api-tests** job → **Run tests** step.
+- ✅ Expected: `Tests run: 6, Failures: 0` and `BUILD SUCCESS`.
+- ❌ If you see `WARNING: GO_REST_API_TOKEN is not set` and `expected: <201> but was: <401>`, the secret is missing or its name is misspelled.
+
+### When the pipeline runs
 
 | Trigger | Environment |
 |---|---|

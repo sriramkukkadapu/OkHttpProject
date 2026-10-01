@@ -35,6 +35,13 @@
       <artifactId>datafaker</artifactId>
       <version>2.7.0</version>
     </dependency>
+    <!-- JsonPath logs through SLF4J; this no-op logger silences the "No SLF4J providers" warning -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-nop</artifactId>
+      <version>2.0.11</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>

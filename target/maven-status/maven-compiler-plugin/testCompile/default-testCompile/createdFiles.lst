@@ -2,5 +2,7 @@ APIUtils.class
 Base.class
 PostRequestTest.class
 GetRequestTest.class
+PostsEnd2EndTest.class
 Config.class
 TemplateUtil.class
+UsersEnd2EndTest.class
